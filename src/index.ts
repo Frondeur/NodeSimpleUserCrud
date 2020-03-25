@@ -1,5 +1,4 @@
 import app from './App';
-import { v4 as uuidv4 } from 'uuid';
 
 const port = process.env.PORT || 3000;
 

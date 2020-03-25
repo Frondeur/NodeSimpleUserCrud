@@ -14,10 +14,10 @@ import {
   ContainerTypes,
 } from 'express-joi-validation';
 
-const validator = createValidator({ passError: true });
+const validator = createValidator();
 
 // RegExp patterns for password and id
-const passwordRegExp = /([0-9].*[a-zA-Z])\|([a-zA-Z].*[0-9])/;
+const passwordRegExp = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 const uuidRegExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 
 interface UserRequestBodySchema extends ValidatedRequestSchema {
@@ -74,47 +74,51 @@ class App {
 
   constructor() {
     this.express = express();
-    this.users = userData;
     this.mountRoutes();
+    this.users = userData;
   }
 
   private mountRoutes(): void {
     const router = express.Router(configs.routerOptions);
+
+    this.express.use(express.json());
+
     router
       .route('/user/:id')
-      .all(
-        // validator.params(userParamsSchema),
-        (req, res, next) => {
-          const userId = req.params.id;
-          const user = this.users.find(user => user.id === userId);
-          if (user && !user.isDeleted) {
-            res.locals.user = user;
-            next();
-          } else {
-            res.status(404).send({
-              Message: `User with id ${userId} doesn't exist.`,
-            });
-          }
+      .all(validator.params(userParamsSchema), (req, res, next) => {
+        const userId = req.params.id;
+        const user = this.users.find(user => user.id === userId);
+        if (user && !user.isDeleted) {
+          res.locals.user = user;
+          next();
+        } else {
+          res.status(404).send({
+            Message: `User with id ${userId} doesn't exist.`,
+          });
+        }
+      })
+      .get((req: ValidatedRequest<UserRequestBodySchema>, res, next) => {
+        res.status(200).json(res.locals.user);
+        next();
+      })
+      .put(
+        validator.body(userBodySchema),
+        (req: ValidatedRequest<UserRequestBodySchema>, res, next) => {
+          const updatedUser = {
+            ...res.locals.user,
+            login: req.body.login,
+            password: req.body.password,
+            age: req.body.age,
+          };
+          const userIndex = this.users.findIndex(
+            user => user.id === res.locals.user.id,
+          );
+          this.users.splice(userIndex, 1, updatedUser);
+          res.status(200).json(updatedUser);
+          next();
         },
       )
-      .get((req, res, next) => {
-        res.status(200).json(res.locals.res);
-        next();
-      })
-      .put((req, res, next) => {
-        const updatedUser = {
-          ...res.locals.user,
-          login: req.body.login,
-          password: req.body.password,
-          age: req.body.age,
-        };
-        const userIndex = this.users.findIndex(
-          user => user.id === res.locals.user.id,
-        );
-        this.users.splice(userIndex, 1, updatedUser);
-        next();
-      })
-      .delete((req, res, next) => {
+      .delete((req: ValidatedRequest<UserRequestBodySchema>, res, next) => {
         const userIndex = this.users.findIndex(
           user => user.id === res.locals.user.id,
         );
@@ -170,9 +174,6 @@ class App {
       },
     );
     this.express.use('/', router);
-    this.express.use((err, req, res, next) => {
-      // res.
-    });
   }
 }
 
