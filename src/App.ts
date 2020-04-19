@@ -1,6 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { User } from './models/User';
+import { User } from './types/User';
 import userData from './mocks/usersMock';
 import configs from './configs/routerConfigs';
 import * as Joi from '@hapi/joi';
@@ -151,11 +151,11 @@ class App {
     router.get(
       '/autoSuggestUsers',
       validator.query(autoSuggestQuerySchema),
-      (req: ValidatedRequest<AutoSuggestRequestQuerySchema>, res, next) => {
+      (req, res, next) => {
         const { loginSubstring, limit } = req.query;
         const availableUserList = this.users.filter(user => !user.isDeleted);
-        const matchingUsers = availableUserList.filter(user =>
-          user.login.includes(loginSubstring),
+        const matchingUsers = availableUserList.filter(
+          user => user.login.includes(loginSubstring as string), // TO DO: Add ValidatedRequest type to req
         );
         if (matchingUsers.length > 0) {
           const sortedByLogin = matchingUsers.sort((a: User, b: User) => {
@@ -163,7 +163,7 @@ class App {
             if (a.login > b.login) return 1;
             return 0;
           });
-          const firstLimitUsers = sortedByLogin.slice(0, limit);
+          const firstLimitUsers = sortedByLogin.slice(0, +limit as number); // TO DO: Add ValidatedRequest type to req
           res.status(200).json(firstLimitUsers);
         } else {
           res.status(204).json({

@@ -27,9 +27,9 @@ var usersMock_1 = __importDefault(require("./mocks/usersMock"));
 var routerConfigs_1 = __importDefault(require("./configs/routerConfigs"));
 var Joi = __importStar(require("@hapi/joi"));
 var express_joi_validation_1 = require("express-joi-validation");
-var validator = express_joi_validation_1.createValidator({ passError: true });
+var validator = express_joi_validation_1.createValidator();
 // RegExp patterns for password and id
-var passwordRegExp = /([0-9].*[a-zA-Z])\|([a-zA-Z].*[0-9])/;
+var passwordRegExp = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 var uuidRegExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
 var userBodySchema = Joi.object({
     login: Joi.string().required(),
@@ -58,17 +58,16 @@ var autoSuggestQuerySchema = Joi.object({
 var App = /** @class */ (function () {
     function App() {
         this.express = express_1.default();
-        this.users = usersMock_1.default;
         this.mountRoutes();
+        this.users = usersMock_1.default;
     }
     App.prototype.mountRoutes = function () {
         var _this = this;
         var router = express_1.default.Router(routerConfigs_1.default.routerOptions);
+        this.express.use(express_1.default.json());
         router
             .route('/user/:id')
-            .all(
-        // validator.params(userParamsSchema),
-        function (req, res, next) {
+            .all(validator.params(userParamsSchema), function (req, res, next) {
             var userId = req.params.id;
             var user = _this.users.find(function (user) { return user.id === userId; });
             if (user && !user.isDeleted) {
@@ -82,13 +81,14 @@ var App = /** @class */ (function () {
             }
         })
             .get(function (req, res, next) {
-            res.status(200).json(res.locals.res);
+            res.status(200).json(res.locals.user);
             next();
         })
-            .put(function (req, res, next) {
+            .put(validator.body(userBodySchema), function (req, res, next) {
             var updatedUser = __assign(__assign({}, res.locals.user), { login: req.body.login, password: req.body.password, age: req.body.age });
             var userIndex = _this.users.findIndex(function (user) { return user.id === res.locals.user.id; });
             _this.users.splice(userIndex, 1, updatedUser);
+            res.status(200).json(updatedUser);
             next();
         })
             .delete(function (req, res, next) {
@@ -119,9 +119,7 @@ var App = /** @class */ (function () {
         router.get('/autoSuggestUsers', validator.query(autoSuggestQuerySchema), function (req, res, next) {
             var _a = req.query, loginSubstring = _a.loginSubstring, limit = _a.limit;
             var availableUserList = _this.users.filter(function (user) { return !user.isDeleted; });
-            var matchingUsers = availableUserList.filter(function (user) {
-                return user.login.includes(loginSubstring);
-            });
+            var matchingUsers = availableUserList.filter(function (user) { return user.login.includes(loginSubstring); });
             if (matchingUsers.length > 0) {
                 var sortedByLogin = matchingUsers.sort(function (a, b) {
                     if (a.login < b.login)
@@ -130,7 +128,7 @@ var App = /** @class */ (function () {
                         return 1;
                     return 0;
                 });
-                var firstLimitUsers = sortedByLogin.slice(0, limit);
+                var firstLimitUsers = sortedByLogin.slice(0, +limit); // TO DO: Add ValidatedRequest type to req
                 res.status(200).json(firstLimitUsers);
             }
             else {
