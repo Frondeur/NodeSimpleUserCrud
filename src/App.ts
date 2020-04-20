@@ -4,6 +4,8 @@ import { User } from './types/User';
 import userData from './mocks/usersMock';
 import configs from './configs/routerConfigs';
 import * as Joi from '@hapi/joi';
+import { Sequelize } from 'sequelize';
+
 import {
   // Use this as a replacement for express.Request
   ValidatedRequest,
@@ -19,6 +21,9 @@ const validator = createValidator();
 // RegExp patterns for password and id
 const passwordRegExp = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 const uuidRegExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+
+const dbConfigs =
+  'postgres://muahlfgukpqstc:50ab78c74334dc60a2ca58a8247fd94eefa71d1a0a046c271c267bb7ba263f29@ec2-46-137-156-205.eu-west-1.compute.amazonaws.com:5432/dc01e2b27bi803';
 
 interface UserRequestBodySchema extends ValidatedRequestSchema {
   [ContainerTypes.Body]: {
@@ -71,11 +76,41 @@ const autoSuggestQuerySchema = Joi.object({
 class App {
   public express: any;
   private readonly users: User[];
+  private sequelize: Sequelize;
 
   constructor() {
     this.express = express();
     this.mountRoutes();
     this.users = userData;
+    // this.sequelize = new Sequelize(
+    //   'dc01e2b27bi803',
+    //   'muahlfgukpqstc',
+    //   '50ab78c74334dc60a2ca58a8247fd94eefa71d1a0a046c271c267bb7ba263f29',
+    //   {
+    //     host: 'ec2-46-137-156-205.eu-west-1.compute.amazonaws.com',
+    //     dialect: 'postgres',
+    //     pool: {
+    //       max: 5,
+    //       min: 0,
+    //       acquire: 30000,
+    //       idle: 10000,
+    //     },
+    //     ssl: true,
+    //   },
+    // );
+    // this.sequelize = new Sequelize(dbConfigs);
+    this.sequelize = new Sequelize(process.env.DATABASE_URL as string, {
+      ssl: true,
+    });
+
+    this.sequelize
+      .authenticate()
+      .then(() => {
+        console.log('Connection has been established successfully.');
+      })
+      .catch(err => {
+        console.error('Unable to connect to the database:', err);
+      });
   }
 
   private mountRoutes(): void {

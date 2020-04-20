@@ -26,11 +26,13 @@ var uuid_1 = require("uuid");
 var usersMock_1 = __importDefault(require("./mocks/usersMock"));
 var routerConfigs_1 = __importDefault(require("./configs/routerConfigs"));
 var Joi = __importStar(require("@hapi/joi"));
+var sequelize_1 = require("sequelize");
 var express_joi_validation_1 = require("express-joi-validation");
 var validator = express_joi_validation_1.createValidator();
 // RegExp patterns for password and id
 var passwordRegExp = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 var uuidRegExp = /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/;
+var dbConfigs = 'postgres://muahlfgukpqstc:50ab78c74334dc60a2ca58a8247fd94eefa71d1a0a046c271c267bb7ba263f29@ec2-46-137-156-205.eu-west-1.compute.amazonaws.com:5432/dc01e2b27bi803';
 var userBodySchema = Joi.object({
     login: Joi.string().required(),
     age: Joi.number()
@@ -60,6 +62,34 @@ var App = /** @class */ (function () {
         this.express = express_1.default();
         this.mountRoutes();
         this.users = usersMock_1.default;
+        // this.sequelize = new Sequelize(
+        //   'dc01e2b27bi803',
+        //   'muahlfgukpqstc',
+        //   '50ab78c74334dc60a2ca58a8247fd94eefa71d1a0a046c271c267bb7ba263f29',
+        //   {
+        //     host: 'ec2-46-137-156-205.eu-west-1.compute.amazonaws.com',
+        //     dialect: 'postgres',
+        //     pool: {
+        //       max: 5,
+        //       min: 0,
+        //       acquire: 30000,
+        //       idle: 10000,
+        //     },
+        //     ssl: true,
+        //   },
+        // );
+        // this.sequelize = new Sequelize(dbConfigs);
+        this.sequelize = new sequelize_1.Sequelize(process.env.DATABASE_URL, {
+            ssl: true,
+        });
+        this.sequelize
+            .authenticate()
+            .then(function () {
+            console.log('Connection has been established successfully.');
+        })
+            .catch(function (err) {
+            console.error('Unable to connect to the database:', err);
+        });
     }
     App.prototype.mountRoutes = function () {
         var _this = this;
